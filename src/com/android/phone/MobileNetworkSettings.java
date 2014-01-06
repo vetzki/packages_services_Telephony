@@ -30,6 +30,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.AsyncResult;
 import android.os.Bundle;
@@ -76,6 +77,9 @@ public class MobileNetworkSettings extends PreferenceActivity
     private static final String BUTTON_ENABLED_NETWORKS_KEY = "enabled_networks_key";
     private static final String BUTTON_4G_LTE_KEY = "enhanced_4g_lte";
     private static final String BUTTON_CELL_BROADCAST_SETTINGS = "cell_broadcast_settings";
+    private static final String BUTTON_BATTERY_MODE_KEY = "button_battery_mode_key";
+    private static final String STORED_NETWORK_TYPE_KEY = "stored_network_type";
+    private static final String STORED_BATTERY_SAVE_STATUS = "battery_save_status";
 
     static final int preferredNetworkMode = Phone.PREFERRED_NT_MODE;
 
@@ -89,11 +93,13 @@ public class MobileNetworkSettings extends PreferenceActivity
     private ListPreference mButtonEnabledNetworks;
     private SwitchPreference mButtonDataRoam;
     private SwitchPreference mButton4glte;
+    private SwitchPreference mButtonBatteryMode;
     private Preference mLteDataServicePref;
 
     private static final String iface = "rmnet0"; //TODO: this will go away
 
     private UserManager mUm;
+    private SharedPreferences mStoredNetwork;
     private Phone mPhone;
     private MyHandler mHandler;
     private boolean mOkClicked;
@@ -185,6 +191,13 @@ public class MobileNetworkSettings extends PreferenceActivity
         } else if (preference == mButtonDataRoam) {
             // Do not disable the preference screen if the user clicks Data roaming.
             return true;
+        } else if (preference == mButtonBatteryMode) {
+            if (mButtonBatteryMode.isChecked()) {
+                mStoredNetwork.edit().putInt(STORED_BATTERY_SAVE_STATUS,1).apply();
+            } else {
+                mStoredNetwork.edit().putInt(STORED_BATTERY_SAVE_STATUS,0).apply();
+            }
+            return true;
         } else {
             // if the button is anything but the simple toggle preference,
             // we'll need to disable all preferences to reject all click
@@ -224,6 +237,9 @@ public class MobileNetworkSettings extends PreferenceActivity
         mButton4glte.setOnPreferenceChangeListener(this);
         mButton4glte.setChecked(ImsManager.isEnhanced4gLteModeSettingEnabledByUser(this));
 
+        mStoredNetwork = mPhone.getContext()
+                               .getSharedPreferences("StoredNetworkType", 0);
+
         try {
             Context con = createPackageContext("com.android.systemui", 0);
             int id = con.getResources().getIdentifier("config_show4GForLTE",
@@ -238,6 +254,7 @@ public class MobileNetworkSettings extends PreferenceActivity
         PreferenceScreen prefSet = getPreferenceScreen();
 
         mButtonDataRoam = (SwitchPreference) prefSet.findPreference(BUTTON_ROAMING_KEY);
+        mButtonBatteryMode = (SwitchPreference) prefSet.findPreference(BUTTON_BATTERY_MODE_KEY);
         mButtonPreferredNetworkMode = (ListPreference) prefSet.findPreference(
                 BUTTON_PREFERED_NETWORK_MODE);
         mButtonEnabledNetworks = (ListPreference) prefSet.findPreference(
